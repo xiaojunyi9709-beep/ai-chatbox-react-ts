@@ -3,7 +3,7 @@ import { Send } from 'lucide-react';
 import { MessageInputProps } from '../types/chat';
 import './MessageInput.css';
 
-const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isLoading }) => {
+const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isLoading, disabled = false }) => {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -29,7 +29,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isLoading })
 
   // 处理发送消息
   const handleSend = () => {
-    if (message.trim() && !isLoading) {
+    if (message.trim() && !isLoading && !disabled) {
       onSendMessage(message);
       setMessage('');
       // 重置输入框高度
@@ -53,24 +53,26 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isLoading })
     }
   };
 
+  const isDisabled = !message.trim() || isLoading || disabled;
+
   return (
     <div className="message-input-container">
-      <div className="input-wrapper">
+      <div className={`input-wrapper ${disabled ? 'disabled' : ''}`}>
         <textarea
           ref={textareaRef}
           value={message}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="输入您的消息...（Enter 发送，Shift+Enter 换行）"
+          placeholder={disabled ? "AI服务暂时不可用..." : "输入您的消息...（Enter 发送，Shift+Enter 换行）"}
           className="message-textarea"
-          disabled={isLoading}
+          disabled={isLoading || disabled}
           rows={1}
         />
         <button
           onClick={handleSend}
-          disabled={!message.trim() || isLoading}
-          className={`send-button ${!message.trim() || isLoading ? 'disabled' : 'active'}`}
-          title="发送消息"
+          disabled={isDisabled}
+          className={`send-button ${isDisabled ? 'disabled' : 'active'}`}
+          title={disabled ? "AI服务不可用" : "发送消息"}
         >
           {isLoading ? (
             <div className="loading-spinner">
@@ -82,7 +84,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isLoading })
         </button>
       </div>
       <div className="input-hint">
-        按 Enter 发送，Shift + Enter 换行
+        {disabled ? "AI服务暂时不可用，请稍后再试" : "按 Enter 发送，Shift + Enter 换行"}
       </div>
     </div>
   );
