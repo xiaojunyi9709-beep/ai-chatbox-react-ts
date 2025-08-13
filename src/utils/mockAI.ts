@@ -1,80 +1,119 @@
-// 模拟 AI 响应逻辑
-const mockResponses = [
-  "这是一个很有趣的问题！让我思考一下...",
-  "根据我的理解，这个问题可以从多个角度来看。",
-  "感谢您的提问！我会尽力为您提供有用的信息。",
-  "让我为您分析一下这个问题的几个关键点...",
-  "这确实是一个值得深入讨论的话题。",
-  "基于目前的信息，我认为可以这样考虑...",
-  "您提到的这点很重要，让我详细解释一下。",
-  "从技术角度来看，这涉及到几个核心概念...",
-  "我理解您的关注点，让我们一起探讨一下可能的解决方案。",
-  "这个话题涉及面很广，我尽量给您一个全面的回答。"
-];
+// 真实的 AI API 调用函数
+// 请将 YOUR_WORKER_URL 替换为您实际的 Cloudflare Worker URL
+const API_BASE_URL = 'https://ai-chat-api.your-username.workers.dev';
 
-const contextualResponses: Record<string, string[]> = {
-  greeting: [
-    "您好！我是AI助手，很高兴与您交流！",
-    "嗨！有什么我可以帮助您的吗？",
-    "你好！我在这里为您提供帮助。"
-  ],
-  question: [
-    "这是一个很棒的问题！",
-    "让我仔细考虑一下您的问题...",
-    "基于您的提问，我认为..."
-  ],
-  help: [
-    "当然！我很乐意帮助您。",
-    "没问题，让我为您解答。",
-    "我来为您提供一些建议。"
-  ]
-};
-
-// 简单的关键词检测
-function detectContext(message: string): string {
-  const lowerMessage = message.toLowerCase();
-  
-  if (lowerMessage.includes('你好') || lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-    return 'greeting';
-  }
-  
-  if (lowerMessage.includes('?') || lowerMessage.includes('？') || lowerMessage.includes('什么') || lowerMessage.includes('怎么')) {
-    return 'question';
-  }
-  
-  if (lowerMessage.includes('帮助') || lowerMessage.includes('help') || lowerMessage.includes('请')) {
-    return 'help';
-  }
-  
-  return 'general';
+export interface APIMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
 }
 
-// 生成随机延迟，模拟真实的AI响应时间
-function getRandomDelay(): number {
-  return Math.random() * 2000 + 1000; // 1-3秒随机延迟
+export interface APIResponse {
+  success: boolean;
+  message: {
+    role: string;
+    content: string;
+  };
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  timestamp: string;
+  error?: string;
 }
 
-// 主要的模拟AI响应函数
-export async function generateAIResponse(userMessage: string): Promise<string> {
-  const delay = getRandomDelay();
-  
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const context = detectContext(userMessage);
-      let responses = contextualResponses[context] || mockResponses;
-      
-      // 如果是特定上下文，有50%概率使用通用响应
-      if (context !== 'general' && Math.random() > 0.5) {
-        responses = mockResponses;
+// 调用真实的 DeepSeek API
+export async function generateAIResponse(userMessage: string, conversationHistory: APIMessage[] = []): Promise<string> {
+  try {
+    // 构建消息历史
+    const messages: APIMessage[] = [
+      {
+        role: 'system',
+        content: '你是一个友善、乐于助人的AI助手。请用中文回答用户的问题，保持回答简洁明了且有帮助。'
+      },
+      ...conversationHistory.slice(-10), // 只保留最近10条对话
+      {
+        role: 'user',
+        content: userMessage
       }
-      
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      resolve(randomResponse);
-    }, delay);
-  });
+    ];
+
+    console.log('Sending request to AI API:', { messages });
+
+    const response = await fetch(`${API_BASE_URL}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ messages }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('API Error:', response.status, errorData);
+      throw new Error(`API request failed: ${response.status} - ${errorData.error || 'Unknown error'}`);
+    }
+
+    const data: APIResponse = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'API returned unsuccessful response');
+    }
+
+    console.log('AI Response received:', data);
+    return data.message.content;
+
+  } catch (error) {
+    console.error('Error calling AI API:', error);
+    
+    // 返回友好的错误消息
+    if (error instanceof Error) {
+      if (error.message.includes('fetch')) {
+        return '抱歉，无法连接到AI服务。请检查网络连接后重试。';
+      }
+      if (error.message.includes('401') || error.message.includes('403')) {
+        return '抱歉，AI服务认证失败。请联系管理员。';
+      }
+      if (error.message.includes('429')) {
+        return '抱歉，请求过于频繁。请稍后再试。';
+      }
+      if (error.message.includes('500') || error.message.includes('502') || error.message.includes('503')) {
+        return '抱歉，AI服务暂时不可用。请稍后再试。';
+      }
+    }
+    
+    return '抱歉，处理您的请求时发生了错误。请稍后再试。';
+  }
 }
 
 // 生成消息ID的工具函数
 export function generateMessageId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// 测试API连接
+export async function testAPIConnection(): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    
+    if (!response.ok) {
+      return { 
+        success: false, 
+        message: `API health check failed: ${response.status}` 
+      };
+    }
+
+    const data = await response.json();
+    return { 
+      success: true, 
+      message: `API连接正常 - ${data.timestamp}` 
+    };
+
+  } catch (error) {
+    console.error('API connection test failed:', error);
+    return { 
+      success: false, 
+      message: `无法连接到API: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
+  }
 }
