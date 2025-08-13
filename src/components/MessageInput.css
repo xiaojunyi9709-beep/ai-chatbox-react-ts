@@ -20,6 +20,12 @@
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+.input-wrapper.disabled {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  opacity: 0.7;
+}
+
 .message-textarea {
   flex: 1;
   min-height: 20px;
@@ -42,6 +48,7 @@
 .message-textarea:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  color: #6b7280;
 }
 
 .send-button {
@@ -103,6 +110,10 @@
   color: #6b7280;
   text-align: center;
   opacity: 0.8;
+}
+
+.input-wrapper.disabled .input-hint {
+  color: #9ca3af;
 }
 
 /* 响应式设计 */
