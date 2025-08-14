@@ -1,6 +1,6 @@
 // 真实的 AI API 调用函数
 // 请将 YOUR_WORKER_URL 替换为您实际的 Cloudflare Worker URL
-const API_BASE_URL = 'https://worker.xiaojunyi9709.workers.dev/health';
+const API_BASE_URL = 'https://worker.xiaojunyi9709.workers.dev';
 
 export interface APIMessage {
   role: 'system' | 'user' | 'assistant';
